@@ -74,24 +74,34 @@ typedef struct{
 }report_t;
 
 static report_t reportBuffer;
-static int      sinus = 7 << 6, cosinus = 0;
 static uchar    idleRate;   /* repeat rate for keyboards, never used for mice */
 
 
-/* The following function advances sin/cos by a fixed angle
- * and stores the difference to the previous coordinates in the report
- * descriptor.
- * The algorithm is the simulation of a second order differential equation.
- */
-static void advanceCircleByFixedAngle(void)
-{
-char    d;
+#define CYCLES_BETWEEN_JIGGLES (10*60)
 
-#define DIVIDE_BY_64(val)  (val + (val > 0 ? 32 : -32)) >> 6    /* rounding divide */
-    reportBuffer.dx = d = DIVIDE_BY_64(cosinus);
-    sinus += d;
-    reportBuffer.dy = d = DIVIDE_BY_64(sinus);
-    cosinus -= d;
+static void jiggleMouse()
+{
+	static unsigned int cycle = 0;
+
+	if (cycle > CYCLES_BETWEEN_JIGGLES)
+	{
+		cycle = 0;
+	}
+
+	if (cycle == 0)
+	{
+		reportBuffer.dx = 1;
+	}
+	else if (cycle == 1)
+	{
+		reportBuffer.dx = -1;
+	}
+	else
+	{
+		reportBuffer.dx = 0;
+	}
+
+	++cycle;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -154,7 +164,7 @@ uchar   i;
         usbPoll();
         if(usbInterruptIsReady()){
             /* called after every poll of the interrupt endpoint */
-            advanceCircleByFixedAngle();
+			jiggleMouse();
             DBG1(0x03, 0, 0);   /* debug output: interrupt report prepared */
             usbSetInterrupt((void *)&reportBuffer, sizeof(reportBuffer));
         }
